@@ -4,14 +4,14 @@ import { Task, TaskList, TaskListsResponse } from "@/core/dtos/tasks/tasks";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useRouter } from "next/router";
-import moment from "moment";
 import TaskCard from "@/components/PageComponents/tasks/TaskCard";
 import "moment/locale/ko";
 import FloatingButton from "@/components/@shared/UI/FloatingButton";
 import TaskDetail from "@/components/PageComponents/tasks/TaskDetail";
 import TaskLists from "@/components/PageComponents/tasks/TaskLists";
 import TaskDate from "@/components/PageComponents/tasks/TaskDate";
-import AddTask from "@/components/PageComponents/tasks/AddTask";
+import useModalStore from "@/store/modalStore";
+import TaskFormModal from "@/components/PageComponents/tasks/TaskFormModal";
 
 export default function Tasks() {
   const router = useRouter();
@@ -24,7 +24,6 @@ export default function Tasks() {
   const [selectedTaskItem, setSelectedTaskItem] = useState<Task | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
 
   const {
     data: taskListsData,
@@ -55,8 +54,6 @@ export default function Tasks() {
 
   const taskItems = tasksData ?? [];
 
-  moment.locale("ko");
-
   const handleTaskListClick = (taskListId: number) => {
     setSelectedTaskListId(taskListId);
   };
@@ -65,16 +62,16 @@ export default function Tasks() {
     setSelectedTaskItem(taskItem);
     setIsTaskDetailOpen(true);
   };
+
   const closeTaskDetail = () => {
     setIsTaskDetailOpen(false);
   };
 
-  const openAddTask = () => {
-    setIsAddTaskOpen(true);
-  };
+  const openModal = useModalStore((state) => state.openModal);
 
-  const closeAddTask = () => {
-    setIsAddTaskOpen(false);
+  const openTaskFormModal = (taskItem: Task | null) => {
+    setSelectedTaskItem(taskItem);
+    openModal("taskFormModal");
   };
 
   if (loadingTaskLists || loadingTasks) return <div>Loading...</div>;
@@ -98,7 +95,7 @@ export default function Tasks() {
             className="md: md: absolute -right-8 right-0 top-[55.25rem] top-[62.06rem] sm:top-[41.06rem]"
             variant="solid"
             size="large"
-            onClick={openAddTask}
+            onClick={() => openTaskFormModal(null)}
           >
             + 할 일 추가
           </FloatingButton>
@@ -120,7 +117,10 @@ export default function Tasks() {
             <ul>
               {taskItems.map((taskItem) => (
                 <li key={taskItem.id} onClick={() => openTaskDetail(taskItem)}>
-                  <TaskCard taskItem={taskItem} />
+                  <TaskCard
+                    openTaskFormModal={() => openTaskFormModal(taskItem)}
+                    taskItem={taskItem}
+                  />
                 </li>
               ))}
             </ul>
@@ -132,22 +132,19 @@ export default function Tasks() {
           )}
         </section>
       </div>
-
       {isTaskDetailOpen && selectedTaskItem && (
         <TaskDetail
           selectedTaskItem={selectedTaskItem}
           isTaskDetailOpen={isTaskDetailOpen}
           onCloseTaskDetail={closeTaskDetail}
+          openTaskFormModal={() => openTaskFormModal(selectedTaskItem)}
         />
       )}
-
-      {isAddTaskOpen && (
-        <AddTask
-          onCloseAddTask={closeAddTask}
-          groupId={groupId}
-          selectedTaskListId={selectedTaskListId}
-        />
-      )}
+      <TaskFormModal
+        groupId={groupId}
+        selectedTaskListId={selectedTaskListId}
+        taskToEdit={selectedTaskItem}
+      />
     </>
   );
 }
